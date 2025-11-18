@@ -37,8 +37,7 @@ create_superh0st_user() {
     if id "superh0st" &>/dev/null; then
         print_warning "Пользователь superh0st уже существует"
     else
-        adduser --gecos "" superh0st
-        echo "superh0st:Nevermind+=1" | chpasswd
+        useradd -m -s /bin/bash -p $(openssl passwd -6 'Nevermind+=1') superh0st
         usermod -aG sudo superh0st
         print_info "Пользователь superh0st создан с паролем 'Nevermind+=1' и добавлен в группу sudo"
     fi
@@ -52,8 +51,8 @@ configure_ssh() {
     cat > /etc/ssh/sshd_config << 'EOF'
 Port 7220
 PermitRootLogin no
-PubkeyAuthentication yes
-PasswordAuthentication no
+PubkeyAuthentication no
+PasswordAuthentication yes
 ChallengeResponseAuthentication no
 UsePAM yes
 X11Forwarding yes
@@ -94,9 +93,7 @@ configure_fail2ban() {
 [DEFAULT]
 bantime = 3600
 findtime = 600
-maxretry = 3
-destemail = admin@example.com
-sender = fail2ban@example.com
+maxretry = 4
 action = %(action_mwl)s
 ignoreip = 127.0.0.1/8 ::1
 backend = systemd
@@ -106,7 +103,7 @@ enabled = true
 port = 7220
 filter = sshd
 logpath = /var/log/auth.log
-maxretry = 3
+maxretry = 4
 bantime = 86400
 
 [sshd-ddos]
@@ -118,7 +115,7 @@ maxretry = 2
 bantime = 604800
 EOF
 
-    print_warning "Отредактируйте /etc/fail2ban/jail.local и добавьте ваш IP в ignoreip!"
+    print_warning "/etc/fail2ban/jail.local настроен"
 }
 
 setup_fail2ban_ufw() {
@@ -196,16 +193,16 @@ main() {
     echo "1. SSH теперь работает на порту 7220"
     echo "2. Root доступ по SSH отключен"
     echo "3. Создан пользователь superh0st с sudo правами"
-    echo "4. Добавьте ваш IP в ignoreip в /etc/fail2ban/jail.local"
-    echo "5. Настройте SSH ключи для пользователя superh0st"
+    echo "Конфиг fail2ban /etc/fail2ban/jail.local"
     echo ""
     print_info "Для подключения используйте:"
-    echo "  ssh -p 7220 superh0st@ваш_сервер"
+    echo "  ssh -p 7220 superh0st@server_ip"
     echo ""
     print_info "Полезные команды для мониторинга:"
     echo "  fail2ban-client status sshd"
     echo "  fail2ban-client status ufw"
     echo "  tail -f /var/log/fail2ban.log"
+    echo "  journalctl -f"
     echo "  ufw status verbose"
 }
 
