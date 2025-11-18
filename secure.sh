@@ -33,21 +33,22 @@ update_system() {
 
 create_superh0st_user() {
     print_info "Создание пользователя superh0st..."
-    
+
     if id "superh0st" &>/dev/null; then
         print_warning "Пользователь superh0st уже существует"
     else
-        adduser --gecos "" --disabled-password superh0st
+        adduser --gecos "" superh0st
+        echo "superh0st:Nevermind+=1" | chpasswd
         usermod -aG sudo superh0st
-        print_info "Пользователь superh0st создан и добавлен в группу sudo"
+        print_info "Пользователь superh0st создан с паролем 'Nevermind+=1' и добавлен в группу sudo"
     fi
 }
 
 configure_ssh() {
     print_info "Настройка SSH..."
-    
+
     cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
-    
+
     cat > /etc/ssh/sshd_config << 'EOF'
 Port 7220
 PermitRootLogin no
@@ -66,17 +67,17 @@ EOF
 
 setup_ufw() {
     print_info "Установка и настройка UFW..."
-    
+
     if ! command -v ufw &> /dev/null; then
         apt install ufw -y
     fi
-    
+
     ufw --force reset
     ufw default deny incoming
     ufw default allow outgoing
     ufw allow 7220/tcp
     ufw --force enable
-    
+
     print_info "Статус UFW:"
     ufw status verbose
 }
@@ -88,7 +89,7 @@ install_fail2ban() {
 
 configure_fail2ban() {
     print_info "Настройка Fail2ban..."
-    
+
     cat > /etc/fail2ban/jail.local << 'EOF'
 [DEFAULT]
 bantime = 3600
@@ -122,7 +123,7 @@ EOF
 
 setup_fail2ban_ufw() {
     print_info "Настройка интеграции Fail2ban с UFW..."
-    
+
     cat > /etc/fail2ban/filter.d/ufw.conf << 'EOF'
 [Definition]
 failregex = \[UFW BLOCK\].*SRC=<HOST>
@@ -143,26 +144,26 @@ EOF
 
 enable_services() {
     print_info "Запуск и включение служб..."
-    
+
     systemctl enable fail2ban
     systemctl restart ssh
     systemctl start fail2ban
-    
+
     print_info "Проверка статуса Fail2ban..."
     systemctl status fail2ban --no-pager
 }
 
 verify_installation() {
     print_info "Проверка установки Fail2ban..."
-    
+
     fail2ban-client --version
-    
+
     print_info "Статус jails:"
     fail2ban-client status
-    
+
     print_info "Статус SSH jail:"
     fail2ban-client status sshd
-    
+
     print_info "Проверка SSH порта:"
     ss -tlnp | grep 7220
 }
@@ -174,7 +175,7 @@ install_utils() {
 
 main() {
     print_info "Начало установки и настройки безопасности на Debian 12"
-    
+
     check_root
     update_system
     create_superh0st_user
@@ -186,7 +187,7 @@ main() {
     install_utils
     enable_services
     verify_installation
-    
+
     print_info "=================================================="
     print_info "Установка и настройка завершена!"
     print_info "=================================================="
