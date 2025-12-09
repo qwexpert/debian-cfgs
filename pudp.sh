@@ -54,6 +54,7 @@ EOF
 }
 
 main() {
+    print_info "starting ..."
     setup_udp_tunnel  
 }
 
