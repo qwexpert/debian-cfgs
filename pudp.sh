@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+
+set -ex
 
 setup_udp_tunnel() {
     print_info "Настройка Plain UDP Tunnel ..."
