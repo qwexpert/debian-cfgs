@@ -77,6 +77,7 @@ setup_ufw() {
     ufw default deny incoming
     ufw default allow outgoing
     ufw allow 7220/tcp
+    ufw allow OpenSSH
     ufw --force enable
 
     print_info "Статус UFW:"
