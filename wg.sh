@@ -12,15 +12,14 @@ setup_wg() {
 
     SERVER_PRIVATE=$(cat /etc/wireguard/private.key)
     SERVER_PUBLIC=$(cat /etc/wireguard/public.key)
-    SERVER_IP="10.10.0.1/24" # "$(ip -4 addr show ens3 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || curl -s ifconfig.me)"
+    SERVER_IP=$(ip -4 addr show ens3 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || curl -s ifconfig.me)  # 10.10.0.1
     WG_PORT="51820"
     
     cat > /etc/wireguard/wg0.conf << EOF
 [Interface]
-Address = $SERVER_IP
+Address = $SERVER_IP/24
 ListenPort = $WG_PORT
 PrivateKey = $SERVER_PRIVATE
-SaveConfig = true
 PostUp = /usr/sbin/iptables -A FORWARD -i ens3 -j ACCEPT; iptables -t nat -A POSTROUTING -o ens3 -j MASQUERADE 
 PostDown = /usr/sbin/iptables -D FORWARD -i ens3 -j ACCEPT; iptables -t nat -D POSTROUTING -o ens3 -j MASQUERADE
 EOF
