@@ -37,11 +37,8 @@ function get_user_input() {
     echo "⠄⠄⠄⠄⠉⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⠉⠄⠄⠄⠄⠄⠄⠄⠄⠉⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⠉⠄⠄⠄⠄⠄⠄⠄⠄⠉⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⠉⠄⠄⠄⠄⠄⠄⠄⠄⠉⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⠉⠄⠄⠄⠄"
     echo -e "${NC}"
     
-    echo -e "${GREEN}Welcome to Debian Security Hardening installer!${NC}"
-    echo "The script will harden your Debian 12 server with SSH security, UFW, and Fail2ban."
-    echo ""
-    echo "I need to ask you a few questions before starting the setup."
-    echo "You can keep the default options and just press enter if you are ok with them."
+    echo -e "${GREEN}Welcome to Debian safety installer!${NC}"
+    echo "The script will harden your Debian server with SSH security, UFW, and Fail2ban."
     echo ""
 
     CURRENT_SSH_PORT=$(grep -E "^Port\s+[0-9]+" /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' | head -1)
@@ -58,9 +55,9 @@ function get_user_input() {
     
     echo -e "${YELLOW}Network Configuration:${NC}"
     if [[ ! -z "${SERVER_PUB_IP}" ]]; then
-        read -rp "Public IP address of this server: " -e -i "${SERVER_PUB_IP}" SERVER_PUB_IP
+        read -rp "Public IP: " -e -i "${SERVER_PUB_IP}" SERVER_PUB_IP
     else
-        read -rp "Public IP address of this server: " SERVER_PUB_IP
+        read -rp "Public IP: " SERVER_PUB_IP
     fi
 
     echo ""
@@ -125,11 +122,6 @@ function get_user_input() {
         read -rp "Extra ports: " -e -i "80,443" EXTRA_PORTS
     fi
     
-    if [[ "${INSTALL_FAIL2BAN}" == "true" ]]; then
-        echo ""
-        read -rp "Email for Fail2ban notifications (optional): " ADMIN_EMAIL
-    fi
-    
     echo ""
     read -rp "Update system packages? (yes/no): " -e -i "yes" UPDATE_SYSTEM
     if [[ ${UPDATE_SYSTEM} =~ ^(no|n)$ ]]; then
@@ -152,10 +144,6 @@ function get_user_input() {
         echo "Extra Firewall Ports: ${EXTRA_PORTS}"
     fi
     
-    if [[ "${INSTALL_FAIL2BAN}" == "true" ]] && [[ ! -z "${ADMIN_EMAIL}" ]]; then
-        echo "Admin Email: ${ADMIN_EMAIL}"
-    fi
-    
     echo "Update System: ${UPDATE_SYSTEM}"
     echo "========================================="
     echo ""
@@ -173,13 +161,12 @@ function get_user_input() {
 
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        print_error "Этот скрипт должен запускаться с правами root"
+        print_error "Need r00t login"
         exit 1
     fi
 }
 
 update_system() {
-    print_info "Обновление списка пакетов и системы..."
     apt update && apt upgrade -y
 }
 
@@ -187,14 +174,14 @@ create_user() {
     local username="$1"
     local password="$2"
     
-    print_info "Создание пользователя $username..."
+    print_info "Creating $username..."
     
     if id "$username" &>/dev/null; then
-        print_warning "Пользователь $username уже существует"
+        print_warning "User $username alredy exist"
     else
         useradd -m -s /bin/bash -p "$(openssl passwd -6 "$password")" "$username"
         usermod -aG sudo "$username"
-        print_info "Пользователь $username создан и добавлен в группу sudo"
+        print_info "User $username now is sudo"
         echo "Password for $username: $password" | tee /root/user_credentials.txt
     fi
 }
@@ -204,7 +191,7 @@ configure_ssh() {
     local allow_root="$2"
     local password_auth="$3"
     
-    print_info "Настройка SSH на порт $ssh_port..."
+    print_info "SSH correcting to $ssh_port..."
     
     cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
     
@@ -235,7 +222,7 @@ PasswordAuthentication $password_auth
 ChallengeResponseAuthentication no
 EOF
     
-    print_info "SSH сконфигурирован на порт $ssh_port"
+    print_info "SSH now is $ssh_port"
     print_info "PermitRootLogin: $root_login"
     print_info "PasswordAuthentication: $password_auth"
 }
@@ -246,11 +233,11 @@ setup_ufw() {
     local extra_ports="$3"
     
     if [ "$install_ufw" = "false" ]; then
-        print_warning "Пропуск установки UFW по выбору пользователя"
+        print_warning ">< UFW"
         return
     fi
     
-    print_info "Установка и настройка UFW..."
+    print_info "Setup UFW..."
     
     if ! command -v ufw &> /dev/null; then
         apt install ufw -y
@@ -260,7 +247,6 @@ setup_ufw() {
     ufw default deny incoming
     ufw default allow outgoing
     
-    # Открываем SSH порт
     ufw allow "$ssh_port/tcp"
     
     if [[ ! -z "$extra_ports" ]]; then
@@ -269,7 +255,7 @@ setup_ufw() {
             port=$(echo "$port" | xargs)
             if [[ "$port" =~ ^[0-9]+$ ]]; then
                 ufw allow "$port/tcp"
-                print_info "Port $port/tcp открыт в UFW"
+                print_info "Port $port/tcp UFW"
             fi
         done
     fi
@@ -277,7 +263,7 @@ setup_ufw() {
     ufw --force enable
     sleep 2
     
-    print_info "Статус UFW:"
+    print_info "Status UFW:"
     ufw status verbose
 }
 
@@ -285,11 +271,11 @@ install_fail2ban_package() {
     local install_fail2ban="$1"
     
     if [ "$install_fail2ban" = "false" ]; then
-        print_warning "Пропуск установки Fail2ban по выбору пользователя"
+        print_warning ">< Fail2ban"
         return
     fi
     
-    print_info "Установка Fail2ban..."
+    print_info "Setup Fail2ban..."
     apt install fail2ban -y
 }
 
@@ -302,7 +288,7 @@ configure_fail2ban() {
         return
     fi
     
-    print_info "Настройка Fail2ban..."
+    print_info "Configuring Fail2ban..."
     
     cat > /etc/fail2ban/jail.local << EOF
 [DEFAULT]
@@ -313,15 +299,6 @@ action = %(action_mwl)s
 ignoreip = 127.0.0.1/8 ::1
 backend = systemd
 EOF
-    
-    if [[ ! -z "$admin_email" ]]; then
-        cat >> /etc/fail2ban/jail.local << EOF
-destemail = $admin_email
-sender = root@$(hostname -f)
-mta = sendmail
-action = %(action_mwl)s
-EOF
-    fi
     
     cat >> /etc/fail2ban/jail.local << EOF
 
@@ -342,7 +319,7 @@ maxretry = 2
 bantime = 604800
 EOF
     
-    print_warning "/etc/fail2ban/jail.local настроен"
+    print_warning "/etc/fail2ban/jail.local configured"
 }
 
 setup_fail2ban_ufw() {
@@ -353,7 +330,7 @@ setup_fail2ban_ufw() {
         return
     fi
     
-    print_info "Настройка интеграции Fail2ban с UFW..."
+    print_info "Configuring Fail2ban + UFW..."
     
     cat > /etc/fail2ban/filter.d/ufw.conf << 'EOF'
 [Definition]
@@ -377,7 +354,7 @@ enable_services() {
     local install_fail2ban="$1"
     local ssh_port="$2"
     
-    print_info "Перезапуск служб..."
+    print_info "Restarting services..."
     
     systemctl restart ssh
     
@@ -385,42 +362,11 @@ enable_services() {
         systemctl enable fail2ban
         systemctl restart fail2ban
         
-        print_info "Проверка статуса Fail2ban..."
+        print_info "Checking Fail2ban..."
         systemctl status fail2ban --no-pager
     fi
     
-    print_info "SSH служба перезапущена на порту $ssh_port"
-}
-
-verify_installation() {
-    local ssh_port="$1"
-    local install_fail2ban="$2"
-    
-    print_info "Проверка установки..."
-    
-    print_info "Проверка SSH порта $ssh_port:"
-    if ss -tlnp | grep -q ":$ssh_port "; then
-        print_info "✓ SSH слушает порт $ssh_port"
-    else
-        print_error "✗ SSH не слушает порт $ssh_port"
-    fi
-    
-    if [ "$install_fail2ban" = "true" ]; then
-        print_info "Проверка Fail2ban..."
-        if systemctl is-active --quiet fail2ban; then
-            print_info "✓ Fail2ban активен"
-            fail2ban-client --version
-            print_info "Статус jails:"
-            fail2ban-client status
-        else
-            print_error "✗ Fail2ban не активен"
-        fi
-    fi
-}
-
-install_utils() {
-    print_info "Установка дополнительных утилит..."
-    apt install -y whois net-tools curl wget
+    print_info "SSH restarted on port $ssh_port"
 }
 
 print_summary() {
@@ -431,33 +377,33 @@ print_summary() {
     local server_ip="$5"
     
     print_info "=================================================="
-    print_info "Установка и настройка завершена!"
+    print_info "COMPLETED!"
     print_info "=================================================="
     echo ""
-    print_warning "ВАЖНО:"
-    echo "1. SSH теперь работает на порту $ssh_port"
-    echo "2. Создан пользователь $username с sudo правами"
-    echo "3. Пароль пользователя сохранен в /root/user_credentials.txt"
+    print_warning "Warning:"
+    echo "1. SSH now on port $ssh_port"
+    echo "2. Created sudo user $username"
+    echo "3. Pa\$\$word in /root/user_credentials.txt"
     
     if [ "$install_ufw" = "true" ]; then
-        echo "4. UFW установлен и настроен"
+        echo "4. UFW configured"
     fi
     
     if [ "$install_fail2ban" = "true" ]; then
-        echo "5. Fail2ban установлен и настроен"
-        echo "   Конфиг: /etc/fail2ban/jail.local"
+        echo "5. Fail2ban configured"
+        echo "   Cfg: /etc/fail2ban/jail.local"
     fi
     
     echo ""
-    print_info "Для подключения используйте:"
+    print_info "For connect use:"
     if [[ ! -z "$server_ip" ]]; then
         echo "  ssh -p $ssh_port $username@$server_ip"
     else
-        echo "  ssh -p $ssh_port $username@ваш_сервер_ip"
+        echo "  ssh -p $ssh_port $username@server_ip"
     fi
     
     echo ""
-    print_info "Полезные команды для мониторинга:"
+    print_info "Useful cmd:"
     echo "  sudo systemctl status ssh"
     
     if [ "$install_fail2ban" = "true" ]; then
@@ -471,12 +417,6 @@ print_summary() {
     if [ "$install_ufw" = "true" ]; then
         echo "  sudo ufw status verbose"
     fi
-    
-    echo ""
-    print_warning "Рекомендуется:"
-    echo "1. Проверить подключение SSH с нового порта"
-    echo "2. Настроить SSH ключи для более безопасного доступа"
-    echo "3. Регулярно обновлять систему: sudo apt update && sudo apt upgrade"
 }
 
 main() {
@@ -496,9 +436,7 @@ main() {
     install_fail2ban_package "$INSTALL_FAIL2BAN"
     configure_fail2ban "$SSH_PORT" "$INSTALL_FAIL2BAN" "$ADMIN_EMAIL"
     setup_fail2ban_ufw "$INSTALL_FAIL2BAN" "$INSTALL_UFW"
-    install_utils
     enable_services "$INSTALL_FAIL2BAN" "$SSH_PORT"
-    verify_installation "$SSH_PORT" "$INSTALL_FAIL2BAN"
     print_summary "$SSH_PORT" "$USERNAME" "$INSTALL_UFW" "$INSTALL_FAIL2BAN" "$SERVER_PUB_IP"
 }
 
