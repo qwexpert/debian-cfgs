@@ -31,6 +31,7 @@ EOF
     systemctl start wg-quick@wg0
 }
 
+
 main() {
     setup_wg
     
