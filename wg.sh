@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -xe
+set -e
 
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
