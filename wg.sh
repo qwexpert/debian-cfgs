@@ -5,88 +5,42 @@ set -e
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 check_root() {
-    [[ $EUID -ne 0 ]] && echo "Требуются права root" && exit 1
+    if [[ $EUID -ne 0 ]]; then echo "Требуются права root"exit 1 fi
 }
 
-install_wireguard() {
-    apt update && apt install -y wireguard iptables-persistent curl
-}
+setup_wg() {
+    apt update
+    apt install -y wireguard
 
-enable_ip_forwarding() {
     echo 1 > /proc/sys/net/ipv4/ip_forward
-    echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
-    sysctl -p
-}
 
-setup_wireguard() {
-    umask 077
-    wg genkey | tee /etc/wireguard/private.key | wg pubkey > /etc/wireguard/public.key
+    wg genkey | tee /etc/wireguard/server_privatekey | wg pubkey | tee /etc/wireguard/server_publickey
+
+    SERVER_PRIVATE=$(cat /etc/wireguard/private.key)
+    SERVER_PUBLIC=$(cat /etc/wireguard/public.key)
+    SERVER_IP="$(ip -4 addr show ens3 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || curl -s ifconfig.me)"
+    WG_PORT="51820"
     
     cat > /etc/wireguard/wg0.conf << EOF
 [Interface]
-Address = 10.10.0.1/24
-ListenPort = 51820
-PrivateKey = $(cat /etc/wireguard/private.key)
-PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+Address = $SERVER_IP
+ListenPort = $WG_PORT
+PrivateKey = $SERVER_PRIVATE
 SaveConfig = true
+PostUp = /usr/sbin/iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o ens3 -j MASQUERADE 
+PostDown = /usr/sbin/iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o ens3 -j MASQUERADE
 EOF
-    
+
     systemctl enable wg-quick@wg0
     systemctl start wg-quick@wg0
 }
 
-create_client() {
-    echo "Имя клиента: "
-    read CLIENT_NAME
-    
-    CLIENT_PRIVATE=$(wg genkey)
-    CLIENT_PUBLIC=$(echo $CLIENT_PRIVATE | wg pubkey)
-    
-    PEER_COUNT=0
-    if wg show wg0 peers &>/dev/null; then
-        PEER_COUNT=$(wg show wg0 peers | wc -l)
-    fi
-    CLIENT_IP="10.10.0.$((PEER_COUNT + 2))"
-    
-    SERVER_PUBLIC=$(cat /etc/wireguard/public.key)
-    SERVER_IP=$(curl -s ifconfig.me)
-    
-    CLIENT_CONFIG="[Interface]
-PrivateKey = $CLIENT_PRIVATE
-Address = $CLIENT_IP/24
-DNS = 8.8.8.8
-
-[Peer]
-PublicKey = $SERVER_PUBLIC
-Endpoint = $SERVER_IP:51820
-AllowedIPs = 0.0.0.0/0
-PersistentKeepalive = 25"
-    
-    wg set wg0 peer $CLIENT_PUBLIC allowed-ips $CLIENT_IP/32
-    wg-quick save wg0
-    
-    echo ""
-    echo "=========================================="
-    echo "Конфиг для подключения клиента $CLIENT_NAME:"
-    echo "=========================================="
-    echo "$CLIENT_CONFIG"
-    echo "=========================================="
-    echo ""
-    echo "IP клиента: $CLIENT_IP"
-    echo "Публичный ключ сервера: $SERVER_PUBLIC"
-    echo ""
-    
-    echo "$CLIENT_CONFIG" > /root/$CLIENT_NAME.conf
-    echo "Конфиг также сохранен в /root/$CLIENT_NAME.conf"
-}
-
 main() {
     check_root
-    install_wireguard
-    enable_ip_forwarding
-    setup_wireguard
-    create_client
+    setup_wg
+    
+    echo "WireGuard запущен"
+    echo "Публичный ключ: $(cat /etc/wireguard/public.key)"
 }
 
 main
