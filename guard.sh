@@ -445,6 +445,7 @@ main() {
     configure_fail2ban "$SSH_PORT" "$INSTALL_FAIL2BAN" "$ADMIN_EMAIL"
     setup_fail2ban_ufw "$INSTALL_FAIL2BAN" "$INSTALL_UFW"
     enable_services "$INSTALL_FAIL2BAN" "$SSH_PORT"
+    setup_user_env
     print_summary "$SSH_PORT" "$USERNAME" "$INSTALL_UFW" "$INSTALL_FAIL2BAN" "$SERVER_PUB_IP"
 }
 
