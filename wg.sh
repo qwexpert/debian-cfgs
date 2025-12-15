@@ -5,7 +5,7 @@ set -e
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 check_root() {
-    if [[ $EUID -ne 0 ]]; then echo "Требуются права root"exit 1 fi
+    if [[ $EUID -ne 0 ]]; then echo "Требуются права root" exit 1
 }
 
 setup_wg() {
