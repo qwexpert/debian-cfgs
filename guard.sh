@@ -419,6 +419,14 @@ print_summary() {
     fi
 }
 
+setup_user_env() {
+    local username="$1"
+    
+    echo 'export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"' >> /home/$username/.bashrc
+    
+    chown $username:$username /home/$username/.bashrc
+}
+
 main() {
     clear
     
