@@ -87,10 +87,10 @@ chmod 600 /etc/ppp/chap-secrets
 echo "net.ipv4.ip_forward = 1" > /etc/sysctl.d/99-vpn.conf
 /sbin/sysctl -p /etc/sysctl.d/99-vpn.conf
 
-/usr/bin/ufw allow 500/udp
-/usr/bin/ufw allow 4500/udp
-/usr/bin/ufw allow 1701/udp
-/usr/bin/ufw allow proto esp from any to any
+/usr/sbin/ufw allow 500/udp
+/usr/sbin/ufw allow 4500/udp
+/usr/sbin/ufw allow 1701/udp
+/usr/sbin/ufw allow proto esp from any to any
 
 cat > /etc/ufw/before.rules << EOF
 *nat
@@ -100,8 +100,8 @@ COMMIT
 EOF
 
 /usr/bin/sed -i '/^DEFAULT_FORWARD_POLICY=/s/DROP/ACCEPT/' /etc/default/ufw
-/usr/bin/ufw --force disable
-/usr/bin/ufw --force enable
+/usr/sbin/ufw --force disable
+/usr/sbin/ufw --force enable
 
 /sbin/iptables -t nat -A POSTROUTING -s 10.10.10.0/24 -o $EXTERNAL_IF -j MASQUERADE
 
