@@ -31,6 +31,16 @@ EOF
     echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
     sysctl -p
 
+    ufw allow 51820/udp comment 'wg-quick@wg0'
+    
+    cat >> /etc/ufw/before.rules << EOF
+*nat
+:POSTROUTING ACCEPT [0:0]
+-A POSTROUTING -s 10.20.30.0/24 -o ens3 -j MASQUERADE
+COMMIT
+EOF
+    sed -i '/^DEFAULT_FORWARD_POLICY/s/DROP/ACCEPT/' /etc/default/ufw
+
     systemctl enable wg-quick@wg0
     systemctl start wg-quick@wg0
 }
