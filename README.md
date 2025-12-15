@@ -22,5 +22,11 @@ curl -s "https://raw.githubusercontent.com/ssh0st/debian-cfgs/refs/heads/master/
 ```
 
 ```bash
+curl -O "https://raw.githubusercontent.com/ssh0st/debian-cfgs/refs/heads/master/guard.sh"
+chmod +x guard.sh
+./guard.sh
+```
+
+```bash
 curl -s "https://raw.githubusercontent.com/ssh0st/debian-cfgs/refs/heads/master/ikev2.sh" | bash -s 199.99.99.99 domain.ru eth0
 ```
